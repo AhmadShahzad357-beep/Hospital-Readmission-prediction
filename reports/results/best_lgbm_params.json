@@ -1,0 +1,13 @@
+{
+  "boosting_type": "gbdt",
+  "n_estimators": "984",
+  "learning_rate": 0.010237844588122208,
+  "num_leaves": "283",
+  "max_depth": "5",
+  "min_child_samples": "152",
+  "subsample": 0.687791476319972,
+  "colsample_bytree": 0.45638916390452144,
+  "reg_alpha": 0.07787547434272361,
+  "reg_lambda": 0.00015125556736397559,
+  "min_split_gain": 0.46559801813246016
+}

@@ -1,0 +1,16 @@
+{
+  "Model": "LightGBM",
+  "Threshold": 0.4954545454545454,
+  "Threshold_source": "training_OOF (decision_threshold.pkl) \u2014 no test leakage",
+  "Accuracy": 0.6083,
+  "Precision": 0.1702,
+  "Recall": 0.6328,
+  "Specificity": 0.6051,
+  "F1": 0.2683,
+  "ROC_AUC": 0.6646,
+  "PR_AUC": 0.2173,
+  "TP": "1420",
+  "FP": "6922",
+  "TN": "10607",
+  "FN": "824"
+}

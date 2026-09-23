@@ -1,0 +1,2 @@
+Model,Threshold,Threshold_source,Accuracy,Precision,Recall,Specificity,F1,ROC_AUC,PR_AUC,TP,FP,TN,FN
+LightGBM,0.4954545454545454,training_OOF (decision_threshold.pkl) — no test leakage,0.6083,0.1702,0.6328,0.6051,0.2683,0.6646,0.2173,1420,6922,10607,824

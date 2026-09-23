@@ -1,0 +1,10 @@
+﻿data/
+models/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+.venv/
+step3a_fix_paths.py
+step3b_fix_eda_paths.py
+step3c_fix_eda_out.py
+step3d_fix_eda_order.py
