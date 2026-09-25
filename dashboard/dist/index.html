@@ -1,0 +1,376 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Hospital Readmission Model -- Results Dashboard</title>
+<style>
+  :root { --blue:#2E5EAA; --green:#2E8B57; --orange:#D98E04; --red:#C0392B; --purple:#6A4C93;
+          --bg:#F7F8FA; --card:#FFFFFF; --border:#E5E7EB; --text:#1F2937; --muted:#6B7280; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: -apple-system, "Segoe UI", Arial, sans-serif; background:var(--bg); color:var(--text); }
+  header { background:#111827; color:white; padding:22px 28px; }
+  header h1 { margin:0; font-size:1.4rem; }
+  header p { margin:4px 0 0; color:#9CA3AF; font-size:0.85rem; }
+  nav { display:flex; gap:4px; background:white; border-bottom:1px solid var(--border); padding:0 24px; overflow-x:auto; }
+  nav button { background:none; border:none; padding:14px 16px; font-size:0.92rem; cursor:pointer; color:var(--muted); border-bottom:3px solid transparent; white-space:nowrap; }
+  nav button.active { color:var(--blue); border-bottom-color:var(--blue); font-weight:600; }
+  main { max-width:1200px; margin:0 auto; padding:24px; }
+  .tab { display:none; } .tab.active { display:block; }
+  .grid { display:grid; gap:16px; }
+  .grid.cols-3 { grid-template-columns: repeat(3, 1fr); }
+  .grid.cols-2 { grid-template-columns: repeat(2, 1fr); }
+  @media (max-width:800px){ .grid.cols-3, .grid.cols-2 { grid-template-columns: 1fr; } }
+  .card { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:16px 18px; }
+  .metric-label { font-size:0.78rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.03em; }
+  .metric-value { font-size:1.6rem; font-weight:700; margin-top:4px; }
+  .card h3 { margin:0 0 12px; font-size:1rem; }
+  table { width:100%; border-collapse:collapse; font-size:0.86rem; }
+  th, td { text-align:left; padding:7px 10px; border-bottom:1px solid var(--border); }
+  th { color:var(--muted); font-weight:600; font-size:0.78rem; text-transform:uppercase; }
+  .badge { display:inline-block; padding:2px 9px; border-radius:99px; font-size:0.78rem; font-weight:600; }
+  .badge.Low { background:#EAF7EE; color:var(--green); }
+  .badge.Medium { background:#FEF8EC; color:var(--orange); }
+  .badge.High { background:#FDECEA; color:var(--red); }
+  .banner { border-left:4px solid var(--orange); background:#FEF8EC; padding:12px 16px; border-radius:6px; margin-bottom:16px; font-size:0.9rem; }
+  .note { font-size:0.8rem; color:var(--muted); margin-top:6px; }
+  img.report-chart { width:100%; border-radius:8px; border:1px solid var(--border); margin-top:8px; }
+  .field { margin-bottom:12px; }
+  .field label { display:block; font-size:0.82rem; color:var(--muted); margin-bottom:4px; }
+  select, input { padding:8px 10px; border:1px solid var(--border); border-radius:6px; font-size:0.88rem; width:100%; }
+  button.action { background:var(--blue); color:white; border:none; cursor:pointer; font-weight:600; padding:10px 22px; border-radius:6px; font-size:0.92rem; }
+  button.action:hover { opacity:0.92; }
+  .result-box { padding:16px; border-radius:8px; border:1px solid var(--border); }
+  .result-box.readmit { background:#FDECEA; border-color:var(--red); }
+  .result-box.safe { background:#EAF7EE; border-color:var(--green); }
+  .prob-big { font-size:2.1rem; font-weight:800; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Hospital Readmission Prediction -- Results Dashboard</h1>
+  <p id="header-sub">Loading model results...</p>
+</header>
+
+<nav>
+  <button data-tab="casechecker" class="active">Case Checker</button>
+  <button data-tab="overview">Overview</button>
+  <button data-tab="performance">Model Performance</button>
+  <button data-tab="calibration">Calibration</button>
+  <button data-tab="risk">Risk Stratification</button>
+  <button data-tab="fairness">Fairness</button>
+  <button data-tab="costbenefit">Cost-Benefit</button>
+  <button data-tab="xgboost">Model Comparison</button>
+</nav>
+
+<main>
+
+  <div id="tab-casechecker" class="tab active">
+    <div class="grid cols-2">
+      <div class="card">
+        <h3>Score a Case</h3>
+        <div id="checker-form" style="display:grid; grid-template-columns: repeat(2, 1fr); gap: 4px 14px;"></div>
+        <button class="action" id="checker-submit" style="margin-top:14px;">Predict Readmission Risk</button>
+      </div>
+      <div class="card">
+        <h3>Result</h3>
+        <div id="checker-result"><p class="note">Fill in the form and click Predict.</p></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="tab-overview" class="tab">
+    <div class="grid cols-3" id="overview-metrics" style="margin-bottom:18px;"></div>
+    <div class="card">
+      <h3>Full Evaluation Dashboard</h3>
+      <img class="report-chart" src="/figures/stage3_full_dashboard.png" alt="Full dashboard">
+    </div>
+  </div>
+
+  <div id="tab-performance" class="tab">
+    <div class="grid cols-2" id="performance-metrics" style="margin-bottom:18px;"></div>
+    <div class="grid cols-2">
+      <div class="card">
+        <h3>ROC &amp; PR Curves</h3>
+        <img class="report-chart" src="/figures/G1_roc_pr_curves.png" alt="ROC and PR curves">
+      </div>
+      <div class="card">
+        <h3>Feature Importance</h3>
+        <img class="report-chart" src="/figures/stage3_feature_importance.png" alt="Feature importance">
+      </div>
+    </div>
+    <div class="card" style="margin-top:16px;">
+      <h3>Baseline vs Tuned CV</h3>
+      <img class="report-chart" src="/figures/stage1_baseline_cv_metrics.png" alt="Baseline CV metrics">
+    </div>
+  </div>
+
+  <div id="tab-calibration" class="tab">
+    <div class="grid cols-2" id="calibration-metrics" style="margin-bottom:18px;"></div>
+    <div class="grid cols-2">
+      <div class="card">
+        <h3>Calibration Check (ECE)</h3>
+        <img class="report-chart" src="/figures/addition2_calibration_ece.png" alt="ECE calibration chart">
+      </div>
+      <div class="card">
+        <h3>Calibration Curve</h3>
+        <img class="report-chart" src="/figures/G11_calibration_curve.png" alt="Calibration curve">
+      </div>
+    </div>
+  </div>
+
+  <div id="tab-risk" class="tab">
+    <div class="card">
+      <h3>Low / Medium / High Risk Buckets</h3>
+      <img class="report-chart" src="/figures/addition7_risk_stratification.png" alt="Risk stratification">
+      <table id="risk-table" style="margin-top:14px;"></table>
+    </div>
+  </div>
+
+  <div id="tab-fairness" class="tab">
+    <div class="banner">Screening-level check (selection rate and recall parity), not a full fairness certification.</div>
+    <div class="card">
+      <h3>Selection Rate vs Actual Readmit Rate, by Group</h3>
+      <img class="report-chart" src="/figures/addition6_fairness_audit.png" alt="Fairness audit chart">
+      <table id="fairness-table" style="margin-top:14px;"></table>
+    </div>
+  </div>
+
+  <div id="tab-costbenefit" class="tab">
+    <div class="card">
+      <h3>High-Risk Outreach: Cost-Benefit Scenarios</h3>
+      <table id="costbenefit-table"></table>
+      <p class="note" id="costbenefit-note"></p>
+    </div>
+  </div>
+
+  <div id="tab-xgboost" class="tab">
+    <div class="card">
+      <h3>LightGBM vs XGBoost (5-Fold CV)</h3>
+      <table id="xgboost-table"></table>
+    </div>
+  </div>
+
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+<script>
+const $ = (sel) => document.querySelector(sel);
+const $$ = (sel) => document.querySelectorAll(sel);
+const fmtPct = (v) => v == null ? "\u2014" : (v * 100).toFixed(1) + "%";
+const fmt3 = (v) => v == null ? "\u2014" : Number(v).toFixed(3);
+const fmtMoney = (v) => v == null ? "\u2014" : "$" + Number(v).toLocaleString(undefined, {maximumFractionDigits: 0});
+
+$$("nav button").forEach(btn => {
+  btn.addEventListener("click", () => {
+    $$("nav button").forEach(b => b.classList.remove("active"));
+    $$(".tab").forEach(t => t.classList.remove("active"));
+    btn.classList.add("active");
+    document.getElementById("tab-" + btn.dataset.tab).classList.add("active");
+  });
+});
+
+async function getJSON(url) {
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+function metricCard(label, value) {
+  const d = document.createElement("div");
+  d.className = "card";
+  d.innerHTML = `<div class="metric-label">${label}</div><div class="metric-value">${value}</div>`;
+  return d;
+}
+
+async function loadOverview() {
+  try {
+    const s = await getJSON("/api/summary");
+    $("#header-sub").textContent = `LightGBM, tuned with ${s.n_trials} search trials -- OOF ROC-AUC ${fmt3(s.oof_roc_auc)}`;
+
+    const box = $("#overview-metrics"); box.innerHTML = "";
+    const bt = s.test_metrics_bt || {};
+    box.appendChild(metricCard("Test ROC-AUC", fmt3(bt.roc_auc)));
+    box.appendChild(metricCard("Test PR-AUC", fmt3(bt.pr_auc)));
+    box.appendChild(metricCard("Calibration ECE", s.ece ? fmt3(s.ece.ece) : "\u2014"));
+
+    loadPerformance(s);
+    loadCalibration(s);
+  } catch (e) {
+    $("#header-sub").innerHTML = `<span style="color:#C0392B">Results not loaded: ${e.message}</span>`;
+  }
+}
+
+function metricsTableRows(title, m) {
+  if (!m) return "";
+  return `<div class="card"><h3>${title}</h3>
+    <table>
+      <tr><td>ROC-AUC</td><td>${fmt3(m.roc_auc)}</td></tr>
+      <tr><td>PR-AUC</td><td>${fmt3(m.pr_auc)}</td></tr>
+      <tr><td>F1</td><td>${fmt3(m.f1)}</td></tr>
+      <tr><td>Precision</td><td>${fmt3(m.precision)}</td></tr>
+      <tr><td>Recall</td><td>${fmt3(m.recall)}</td></tr>
+      <tr><td>Specificity</td><td>${fmt3(m.specificity)}</td></tr>
+    </table></div>`;
+}
+
+function loadPerformance(s) {
+  const box = $("#performance-metrics");
+  box.innerHTML = metricsTableRows(`F1-Optimal Threshold (${fmt3(s.best_threshold)})`, s.test_metrics_bt)
+                 + metricsTableRows(`Cost-Sensitive Threshold (${fmt3(s.cost_sensitive_threshold)}, FN ${s.fn_cost}x / FP ${s.fp_cost}x)`, s.test_metrics_cost);
+}
+
+function loadCalibration(s) {
+  const box = $("#calibration-metrics"); box.innerHTML = "";
+  if (s.ece) {
+    box.appendChild(metricCard("Expected Calibration Error (ECE)", fmt3(s.ece.ece)));
+    box.appendChild(metricCard("Calibration Quality", s.ece.ece < 0.02 ? "Well calibrated" : s.ece.ece < 0.05 ? "Reasonably calibrated" : "Poorly calibrated"));
+  }
+}
+
+async function loadRisk() {
+  try {
+    const r = await getJSON("/api/risk-stratification");
+    const t = $("#risk-table");
+    t.innerHTML = "<tr><th>Bucket</th><th>Patients</th><th>Actual Readmit Rate</th><th>Mean Predicted</th></tr>";
+    r.rows.forEach(row => {
+      t.innerHTML += `<tr><td><span class="badge ${row.bucket}">${row.bucket}</span></td>
+        <td>${Number(row.n).toLocaleString()}</td><td>${fmtPct(row.actual_readmit_rate)}</td>
+        <td>${fmtPct(row.mean_predicted)}</td></tr>`;
+    });
+  } catch (e) { $("#risk-table").innerHTML = `<tr><td>Not available: ${e.message}</td></tr>`; }
+}
+
+async function loadFairness() {
+  try {
+    const r = await getJSON("/api/fairness");
+    const t = $("#fairness-table");
+    t.innerHTML = "<tr><th>Group</th><th>n</th><th>Selection Rate</th><th>Actual Readmit Rate</th><th>Recall</th></tr>";
+    r.rows.forEach(row => {
+      t.innerHTML += `<tr><td>${row.group}</td><td>${Number(row.n).toLocaleString()}</td>
+        <td>${fmtPct(row.selection_rate)}</td><td>${fmtPct(row.actual_readmit_rate)}</td>
+        <td>${fmtPct(row.recall)}</td></tr>`;
+    });
+  } catch (e) { $("#fairness-table").innerHTML = `<tr><td>Not available: ${e.message}</td></tr>`; }
+}
+
+async function loadCostBenefit() {
+  try {
+    const r = await getJSON("/api/cost-benefit");
+    const t = $("#costbenefit-table");
+    t.innerHTML = "<tr><th>Scenario</th><th>Effectiveness</th><th>Outreach Cost</th><th>Readmissions Prevented</th><th>Gross Savings</th><th>Net Savings</th></tr>";
+    r.rows.forEach(row => {
+      t.innerHTML += `<tr><td>${row.scenario}</td><td>${fmtPct(row.effectiveness_assumption)}</td>
+        <td>${fmtMoney(row.outreach_cost)}</td><td>${Number(row.readmissions_prevented).toFixed(1)}</td>
+        <td>${fmtMoney(row.gross_savings)}</td><td><b>${fmtMoney(row.net_savings)}</b></td></tr>`;
+    });
+    $("#costbenefit-note").textContent = "Assumes $50/outreach call and $15,000 average cost per prevented readmission (public estimate). Effectiveness assumptions are labeled scenarios, not measured facts.";
+  } catch (e) { $("#costbenefit-table").innerHTML = `<tr><td>Not available: ${e.message}</td></tr>`; }
+}
+
+async function loadXgboost() {
+  try {
+    const r = await getJSON("/api/xgboost-comparison");
+    const t = $("#xgboost-table");
+    t.innerHTML = "<tr><th>Model</th><th>Mean ROC-AUC</th><th>Mean PR-AUC</th></tr>";
+    r.rows.forEach(row => {
+      t.innerHTML += `<tr><td>${row.model}</td><td>${fmt3(row.mean_roc_auc)}</td><td>${row.mean_pr_auc != null ? fmt3(row.mean_pr_auc) : "\u2014"}</td></tr>`;
+    });
+  } catch (e) { $("#xgboost-table").innerHTML = `<tr><td>Not available: ${e.message}</td></tr>`; }
+}
+
+// ---- CASE CHECKER ----
+let currentOptions = null;
+async function loadChecker() {
+  currentOptions = await getJSON("/api/options");
+  renderCheckerForm();
+}
+
+function fieldSelect(label, id, items) {
+  const opts = items.map(o => `<option value="${o}">${o}</option>`).join("");
+  return `<div class="field"><label>${label}</label><select id="${id}">${opts}</select></div>`;
+}
+
+function fieldNumber(label, id, value) {
+  return `<div class="field"><label>${label}</label><input type="number" id="${id}" value="${value}"></div>`;
+}
+
+function renderCheckerForm() {
+  const o = currentOptions;
+  const form = $("#checker-form");
+  let html = "";
+  html += fieldNumber("Time in Hospital (days)", "f-time_in_hospital", 3);
+  html += fieldNumber("Number of Lab Procedures", "f-num_lab_procedures", 40);
+  html += fieldNumber("Number of Procedures", "f-num_procedures", 1);
+  html += fieldNumber("Number of Medications", "f-num_medications", 15);
+  html += fieldNumber("Number of Diagnoses", "f-number_diagnoses", 7);
+  html += fieldNumber("Prior Outpatient Visits", "f-number_outpatient", 0);
+  html += fieldNumber("Prior Emergency Visits", "f-number_emergency", 0);
+  html += fieldNumber("Prior Inpatient Visits", "f-number_inpatient", 0);
+  html += fieldNumber("Prior Encounters (this patient)", "f-prior_encounter_count", 0);
+  html += fieldNumber("Prior <30-Day Readmissions (this patient)", "f-prior_readmission_count", 0);
+  html += fieldSelect("Age Bracket", "f-age_bracket", o.age_bracket);
+  html += fieldSelect("Gender", "f-gender", o.gender);
+  html += fieldSelect("Insulin", "f-insulin", o.insulin);
+  html += fieldSelect("Medication Changed This Visit", "f-change", o.change);
+  html += fieldSelect("On Diabetes Medication", "f-diabetesMed", o.diabetesMed);
+  html += fieldSelect("Primary Diagnosis Group", "f-diag_1_group", o.diag_1_group);
+  html += fieldSelect("Secondary Diagnosis Group", "f-diag_2_group", o.diag_2_group);
+  html += fieldSelect("Tertiary Diagnosis Group", "f-diag_3_group", o.diag_3_group);
+  html += fieldSelect("Race", "f-race", o.race);
+  html += fieldSelect("A1C Test Category", "f-A1C_category", o.A1C_category);
+  html += fieldSelect("Glucose Serum Category", "f-glu_serum_category", o.glu_serum_category);
+  html += fieldSelect("Admission Type", "f-admission_type_group", o.admission_type_group);
+  html += fieldSelect("Admission Source", "f-admission_source_group", o.admission_source_group);
+  html += fieldSelect("Discharge Disposition", "f-discharge_group", o.discharge_group);
+  html += fieldSelect("Medical Specialty", "f-medical_specialty_grouped", o.medical_specialty_grouped);
+  html += fieldSelect("Payer Code", "f-payer_code_grouped", o.payer_code_grouped);
+  form.innerHTML = html;
+}
+
+$("#checker-submit").addEventListener("click", async () => {
+  const val = (id) => { const el = document.getElementById(id); return el ? el.value : null; };
+  const num = (id) => { const v = val(id); return v === null ? 0 : Number(v); };
+  const body = {
+    time_in_hospital: num("f-time_in_hospital"), num_lab_procedures: num("f-num_lab_procedures"),
+    num_procedures: num("f-num_procedures"), num_medications: num("f-num_medications"),
+    number_outpatient: num("f-number_outpatient"), number_emergency: num("f-number_emergency"),
+    number_inpatient: num("f-number_inpatient"), number_diagnoses: num("f-number_diagnoses"),
+    prior_encounter_count: num("f-prior_encounter_count"), prior_readmission_count: num("f-prior_readmission_count"),
+    age_bracket: val("f-age_bracket"), gender: val("f-gender"), insulin: val("f-insulin"),
+    change: val("f-change"), diabetesMed: val("f-diabetesMed"),
+    diag_1_group: val("f-diag_1_group"), diag_2_group: val("f-diag_2_group"), diag_3_group: val("f-diag_3_group"),
+    race: val("f-race"), A1C_category: val("f-A1C_category"), glu_serum_category: val("f-glu_serum_category"),
+    admission_type_group: val("f-admission_type_group"), admission_source_group: val("f-admission_source_group"),
+    discharge_group: val("f-discharge_group"), medical_specialty_grouped: val("f-medical_specialty_grouped"),
+    payer_code_grouped: val("f-payer_code_grouped"),
+  };
+  const resultBox = $("#checker-result");
+  resultBox.innerHTML = `<p class="note">Scoring...</p>`;
+  try {
+    const r = await fetch("/api/predict", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify(body) });
+    if (!r.ok) throw new Error(await r.text());
+    const data = await r.json();
+    const cls = data.calibrated_probability >= data.threshold ? "readmit" : "safe";
+    resultBox.innerHTML = `
+      <div class="result-box ${cls}">
+        <div class="prob-big">${fmtPct(data.calibrated_probability)}</div>
+        <div>calibrated chance of readmission within 30 days (decision threshold: ${fmtPct(data.threshold)}) → <b>${data.decision}</b></div>
+        <p class="note">Raw model output before calibration: ${fmtPct(data.raw_probability)}</p>
+        <p class="note">Cost-sensitive threshold (weighs a missed readmission 3x an unnecessary call): ${fmtPct(data.cost_sensitive_threshold)}</p>
+      </div>`;
+  } catch (e) {
+    resultBox.innerHTML = `<p style="color:#C0392B">Error: ${e.message}</p>`;
+  }
+});
+
+loadChecker();
+loadOverview();
+loadRisk();
+loadFairness();
+loadCostBenefit();
+loadXgboost();
+</script>
+</body>
+</html>

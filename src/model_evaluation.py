@@ -96,6 +96,34 @@ def _style_ax(ax):
     ax.grid(False)
 
 
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# ADDITION 2 -- CALIBRATION CHECK (Expected Calibration Error)
+# ══════════════════════════════════════════════════════════════════════════════
+def expected_calibration_error(y_true, y_prob, n_bins=10):
+    """ECE: average gap between predicted probability and actual outcome
+    rate, weighted by how many predictions fall in each probability bin.
+    A model saying '60%' should be right about 60% of the time -- ECE close
+    to 0 means it is; a large ECE means the reported probabilities cannot
+    be trusted at face value even if ranking (AUC) is fine.
+    """
+    import numpy as np
+    bins = np.linspace(0, 1, n_bins + 1)
+    bin_ids = np.digitize(y_prob, bins[1:-1])
+    ece = 0.0
+    rows = []
+    for b in range(n_bins):
+        mask = bin_ids == b
+        if mask.sum() == 0:
+            continue
+        conf = y_prob[mask].mean()
+        acc = y_true[mask].mean()
+        weight = mask.sum() / len(y_true)
+        ece += weight * abs(conf - acc)
+        rows.append({"bin": b, "predicted_mean": conf, "actual_rate": acc, "n": int(mask.sum())})
+    return ece, rows
+
 # ══════════════════════════════════════════════════════════════════════════════
 # 1. LOAD DATA, MODEL & THRESHOLD (threshold comes from TRAINING, not test)
 # ══════════════════════════════════════════════════════════════════════════════
@@ -106,6 +134,8 @@ print("=" * 65)
 print("\n[1] Loading data, model and OOF-chosen threshold...")
 X_test = pd.read_csv(PROCESSED_DIR / 'X_test.csv')
 y_test = pd.read_csv(PROCESSED_DIR / 'y_test.csv').squeeze()   # column-name agnostic
+
+
 
 model_path = MODELS_DIR / 'lgbm_final.pkl'
 if not model_path.exists():
@@ -123,13 +153,70 @@ if not threshold_path.exists():
     )
 THRESHOLD = joblib.load(threshold_path)['threshold']
 
+# --- ADDITION 2 -- RUN CHECK: needs model predictions -- compute them here
+#     once (the rest of the script re-derives its own predictions later,
+#     which is fine since these are cheap and read-only) ---
+
+
+
 MODEL_NAME = 'LightGBM'
 print(f"   Model            : {MODEL_NAME}")
 print(f"   Test set size    : {len(y_test):,}")
 print(f"   Positive class   : {y_test.mean()*100:.2f}%")
 print(f"   Decision threshold (from training OOF, no leakage): {THRESHOLD:.3f}")
 
-y_pred_proba = model.predict_proba(X_test)[:, 1]
+y_pred_proba_raw = model.predict_proba(X_test)[:, 1]
+
+# ADDITION 2 FIX -- apply the Platt calibrator fitted (on OOF train
+# predictions only) in model_training.py, so evaluation reports the SAME
+# calibrated probabilities the threshold and calibration check are about.
+_calibrator_path = MODELS_DIR / 'calibrator.pkl'
+if _calibrator_path.exists():
+    _calibrator = joblib.load(_calibrator_path)
+    _p = np.clip(y_pred_proba_raw.astype(float), 1e-6, 1 - 1e-6)
+    _logit_p = np.log(_p / (1 - _p))
+    y_pred_proba = _calibrator.predict_proba(_logit_p.reshape(-1, 1))[:, 1]
+    print(f"   Applied saved Platt calibrator (fitted on OOF train predictions, no test leakage)")
+else:
+    y_pred_proba = y_pred_proba_raw
+    print(f"   WARNING: {_calibrator_path} not found -- using UNCALIBRATED probabilities")
+
+print("\n" + "=" * 65)
+print("ADDITION 2 -- CALIBRATION CHECK (is a '60%' really 60%?)")
+print("=" * 65)
+_ece_value, _ece_rows = expected_calibration_error(y_test.values, y_pred_proba, n_bins=10)
+print(f"Expected Calibration Error (ECE): {_ece_value:.4f}")
+if _ece_value < 0.02:
+    print("  -> Well calibrated: predicted probabilities can be trusted at face value.")
+elif _ece_value < 0.05:
+    print("  -> Reasonably calibrated: minor gap, usable with caution.")
+else:
+    print("  -> Poorly calibrated: consider Platt/isotonic recalibration before using")
+    print("     raw probabilities for anything cost- or dollar-based.")
+
+_ece_df = pd.DataFrame(_ece_rows)
+_ece_df.to_csv(RESULTS_DIR / 'calibration_ece_by_bin.csv', index=False)
+with open(RESULTS_DIR / 'calibration_ece_summary.json', 'w') as _f:
+    json.dump({"ece": _ece_value, "n_bins": 10}, _f, indent=2)
+
+_fig_ece, _ax_ece = plt.subplots(figsize=(8, 6.5))
+_ax_ece.plot([0, 1], [0, 1], '--', color=PALETTE['negative'], linewidth=1.3, label='Perfect calibration')
+_ax_ece.plot(_ece_df['predicted_mean'], _ece_df['actual_rate'], 'o-',
+            color=PALETTE['primary'], linewidth=2, markersize=7, label='This model')
+for _, _r in _ece_df.iterrows():
+    _ax_ece.plot([_r['predicted_mean'], _r['predicted_mean']],
+                [_r['predicted_mean'], _r['actual_rate']],
+                color=PALETTE['fp'], linewidth=1.0, alpha=0.6)
+_ax_ece.set_xlabel('Predicted probability (bin mean)', fontsize=10.5, color=LABEL_CLR)
+_ax_ece.set_ylabel('Actual readmission rate', fontsize=10.5, color=LABEL_CLR)
+_ax_ece.set_title(f'ADDITION 2 -- Calibration Check (ECE = {_ece_value:.4f})',
+                  fontsize=12.5, fontweight='bold', color=TITLE_CLR)
+_ax_ece.legend(fontsize=9.5, frameon=False, loc='upper left')
+_style_ax(_ax_ece)
+plt.tight_layout()
+_fig_ece.savefig(FIGURES_DIR / 'addition2_calibration_ece.png', dpi=300, bbox_inches='tight', facecolor=BG)
+plt.close(_fig_ece)
+print("Saved: addition2_calibration_ece.png")
 y_pred       = (y_pred_proba >= THRESHOLD).astype(int)
 
 # ══════════════════════════════════════════════════════════════════════════════

@@ -147,6 +147,56 @@ def find_best_threshold(y_true, y_prob):
     return best_t, best_f1
 
 
+# -- ADDITION 2 FIX: PLATT CALIBRATION -----------------------------------
+# The calibration check in model_evaluation.py found ECE=0.35 -- scale_pos_weight
+# (used to fight class imbalance) biases raw probabilities upward to help
+# ranking (AUC), at the cost of a "60%" prediction actually meaning 60%.
+# Platt scaling (a tiny logistic regression on logit(p)) fixes this. It is
+# fit ONLY on out-of-fold (OOF) train predictions, never on the test set --
+# the same no-leakage rule as the threshold selection right below it.
+def _logit(p):
+    p = np.clip(np.asarray(p, dtype=float), 1e-6, 1 - 1e-6)
+    return np.log(p / (1 - p))
+
+
+def fit_platt_calibrator(oof_probs, oof_trues):
+    from sklearn.linear_model import LogisticRegression
+    calibrator = LogisticRegression(C=1e6, max_iter=1000)
+    calibrator.fit(_logit(oof_probs).reshape(-1, 1), oof_trues)
+    return calibrator
+
+
+def apply_calibration(p, calibrator):
+    return calibrator.predict_proba(_logit(p).reshape(-1, 1))[:, 1]
+
+
+# -- ADDITION 3: COST-SENSITIVE THRESHOLD --------------------------------
+# A missed at-risk patient (false negative) is more costly to a hospital
+# than an unnecessary follow-up call (false positive) -- FN_COST/FP_COST
+# below encode that a missed readmission is judged 3x as costly as a
+# needless call. This is a business judgment call, not something derived
+# from the data, so it is a named constant that can be changed and
+# re-run rather than a number buried in the threshold-selection logic.
+FN_COST = 3.0
+FP_COST = 1.0
+
+
+def find_cost_sensitive_threshold(y_true, y_prob, fn_cost=FN_COST, fp_cost=FP_COST):
+    """Threshold that minimises fn_cost*FN + fp_cost*FP, swept the same
+    way find_best_threshold() sweeps for F1 -- same OOF-only rule applies.
+    """
+    thresholds = np.linspace(0.01, 0.99, 200)
+    best_t, best_cost = 0.5, float('inf')
+    for t in thresholds:
+        pred = (y_prob >= t).astype(int)
+        fn = ((pred == 0) & (y_true == 1)).sum()
+        fp = ((pred == 1) & (y_true == 0)).sum()
+        cost = fn_cost * fn + fp_cost * fp
+        if cost < best_cost:
+            best_cost, best_t = cost, t
+    return best_t, best_cost
+
+
 # ══════════════════════════════════════════════════════════════════════════════
 # STAGE 1 — BASELINE LightGBM  (5-Fold StratifiedGroupKFold CV)
 # ══════════════════════════════════════════════════════════════════════════════
@@ -520,9 +570,20 @@ oof_pr  = average_precision_score(tuned_oof_trues, tuned_oof_probs)
 print(f"\n  OOF (full train) ROC-AUC : {oof_roc:.4f}")
 print(f"  OOF (full train) PR-AUC  : {oof_pr:.4f}")
 
-# Best threshold from OOF
-best_thresh, best_oof_f1 = find_best_threshold(tuned_oof_trues, tuned_oof_probs)
-print(f"  Best threshold (OOF F1)  : {best_thresh:.3f}  (F1={best_oof_f1:.4f})")
+# ADDITION 2 FIX -- fit Platt calibrator on OOF train predictions only
+calibrator = fit_platt_calibrator(tuned_oof_probs, tuned_oof_trues)
+tuned_oof_probs_calibrated = apply_calibration(tuned_oof_probs, calibrator)
+print(f"  Platt calibrator fitted on {len(tuned_oof_probs):,} OOF train predictions (no test leakage)")
+
+# Best threshold from CALIBRATED OOF (threshold and probabilities must agree on the same scale)
+best_thresh, best_oof_f1 = find_best_threshold(tuned_oof_trues, tuned_oof_probs_calibrated)
+print(f"  Best threshold (OOF F1, calibrated)  : {best_thresh:.3f}  (F1={best_oof_f1:.4f})")
+
+# ADDITION 3 -- cost-sensitive threshold, same calibrated OOF predictions,
+# never the test set
+cost_thresh, cost_value = find_cost_sensitive_threshold(tuned_oof_trues, tuned_oof_probs_calibrated)
+print(f"  Cost-sensitive threshold (OOF, FN_cost={FN_COST}x FP_cost={FP_COST}x): "
+      f"{cost_thresh:.3f}  (weighted cost={cost_value:.0f})")
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -702,12 +763,19 @@ final_model = lgb.LGBMClassifier(**FINAL_PARAMS)
 final_model.fit(X_arr, y_arr)
 
 # Predictions
-y_prob_test  = final_model.predict_proba(X_test.values)[:, 1]
-y_prob_train = final_model.predict_proba(X_arr)[:, 1]
+y_prob_test_raw  = final_model.predict_proba(X_test.values)[:, 1]
+y_prob_train_raw = final_model.predict_proba(X_arr)[:, 1]
 
-# Test metrics at default 0.5 and best OOF threshold
+# ADDITION 2 FIX -- apply the SAME Platt calibrator fitted on OOF train
+# predictions above. The test set is never used to fit the calibrator.
+y_prob_test  = apply_calibration(y_prob_test_raw, calibrator)
+y_prob_train = apply_calibration(y_prob_train_raw, calibrator)
+print(f"  Calibrated test mean predicted: {y_prob_test.mean():.4f}  |  actual test positive rate: {y_test.mean():.4f}")
+
+# Test metrics at default 0.5 and best OOF threshold (calibrated probabilities)
 test_metrics_05 = compute_all_metrics(y_test, y_prob_test, threshold=0.5)
 test_metrics_bt = compute_all_metrics(y_test, y_prob_test, threshold=best_thresh)
+test_metrics_cost = compute_all_metrics(y_test, y_prob_test, threshold=cost_thresh)
 train_metrics   = compute_all_metrics(y_arr,  y_prob_train, threshold=best_thresh)
 
 print(f"\n  ─── Test Set Metrics (threshold=0.50) ───")
@@ -716,6 +784,11 @@ for k, v in test_metrics_05.items():
 
 print(f"\n  ─── Test Set Metrics (threshold={best_thresh:.3f}, OOF-optimal) ───")
 for k, v in test_metrics_bt.items():
+    if isinstance(v, float): print(f"  {k:12}: {v:.4f}")
+
+print(f"\n  ─── Test Set Metrics (threshold={cost_thresh:.3f}, cost-sensitive, "
+      f"FN {FN_COST}x FP {FP_COST}x) ───")
+for k, v in test_metrics_cost.items():
     if isinstance(v, float): print(f"  {k:12}: {v:.4f}")
 
 # Overfitting check
@@ -729,7 +802,13 @@ for metric in ['roc_auc', 'pr_auc', 'f1', 'recall']:
 
 # Save final model
 joblib.dump(final_model, MODELS_DIR / 'lgbm_final.pkl')
-joblib.dump({'threshold': best_thresh}, MODELS_DIR / 'decision_threshold.pkl')
+joblib.dump({
+    'threshold': best_thresh,
+    'cost_sensitive_threshold': cost_thresh,
+    'fn_cost': FN_COST,
+    'fp_cost': FP_COST,
+}, MODELS_DIR / 'decision_threshold.pkl')
+joblib.dump(calibrator, MODELS_DIR / 'calibrator.pkl')
 print(f"\n  Model saved → {MODELS_DIR}/lgbm_final.pkl")
 print(f"  Threshold saved → {MODELS_DIR}/decision_threshold.pkl")
 
@@ -740,8 +819,12 @@ results_dict = {
     'oof_roc_auc'   : oof_roc,
     'oof_pr_auc'    : oof_pr,
     'best_threshold': best_thresh,
+    'cost_sensitive_threshold': cost_thresh,
+    'fn_cost': FN_COST,
+    'fp_cost': FP_COST,
     'test_metrics_05' : test_metrics_05,
     'test_metrics_bt' : test_metrics_bt,
+    'test_metrics_cost' : test_metrics_cost,
     'best_params'   : best_params_raw,
     'n_trials'      : N_ITER,
     'search_method' : 'RandomizedSearchCV',

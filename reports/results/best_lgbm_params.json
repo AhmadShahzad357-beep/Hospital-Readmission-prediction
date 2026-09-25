@@ -1,13 +1,13 @@
 {
   "boosting_type": "gbdt",
-  "n_estimators": "984",
-  "learning_rate": 0.010237844588122208,
-  "num_leaves": "283",
-  "max_depth": "5",
-  "min_child_samples": "152",
-  "subsample": 0.687791476319972,
-  "colsample_bytree": 0.45638916390452144,
-  "reg_alpha": 0.07787547434272361,
-  "reg_lambda": 0.00015125556736397559,
-  "min_split_gain": 0.46559801813246016
+  "n_estimators": "752",
+  "learning_rate": 0.011688011040977176,
+  "num_leaves": "166",
+  "max_depth": "6",
+  "min_child_samples": "44",
+  "subsample": 0.8842770071531545,
+  "colsample_bytree": 0.42616226305266025,
+  "reg_alpha": 9.391880411447953,
+  "reg_lambda": 0.022372914861151328,
+  "min_split_gain": 0.2795603417967586
 }

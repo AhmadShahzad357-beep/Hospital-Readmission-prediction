@@ -1,4 +1,4 @@
-import pandas as pd
+﻿import pandas as pd
 import numpy as np
 import os, joblib
 import matplotlib
@@ -14,7 +14,7 @@ from sklearn.preprocessing import RobustScaler
 from sklearn.feature_selection import VarianceThreshold, mutual_info_classif
 
 # ============================================================================
-# PATHS  —  apne system ke mutabiq adjust karo
+# PATHS  â€”  apne system ke mutabiq adjust karo
 # ============================================================================
 BASE_DIR      = Path(__file__).resolve().parent.parent
 CLEANED_DATA_PATH = BASE_DIR / 'data/processed/diabetic_data_cleaned.csv'
@@ -25,7 +25,7 @@ FIGURES_DIR.mkdir(parents=True, exist_ok=True)
 
 RANDOM_STATE = 42
 
-# ─── Design tokens ───────────────────────────────────────────────────────────
+# â”€â”€â”€ Design tokens â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 PALETTE = {
     'bg'      : '#FFFFFF', 'panel'   : '#F7FAFC', 'spine'   : '#D1DCE5',
     'title'   : '#0D1B2A', 'label'   : '#2C3E50', 'tick'    : '#4A5568',
@@ -40,16 +40,16 @@ plt.rcParams.update({
 })
 
 # ============================================================================
-# STAGE A — LOAD & DETERMINISTIC FEATURE ENGINEERING
+# STAGE A â€” LOAD & DETERMINISTIC FEATURE ENGINEERING
 # ============================================================================
 df = pd.read_csv(CLEANED_DATA_PATH, low_memory=False)
-print(f"✅ Cleaned data loaded (from data_cleaning.py output)  →  shape: {df.shape}")
+print(f"âœ… Cleaned data loaded (from data_cleaning.py output)  â†’  shape: {df.shape}")
 print("   This is the SAME cleaned file EDA.py reads -- hidden-missing-code")
 print("   unmasking, rare-med consolidation, and A1C/glucose missing-flags")
 print("   from data_cleaning.py now flow into modelling instead of being")
 print("   silently redone (differently) from raw data here.")
 
-# ── A1 / A1.5: SKIPPED — already done by data_cleaning.py ─────────────────
+# â”€â”€ A1 / A1.5: SKIPPED â€” already done by data_cleaning.py â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # weight/max_glu_serum/examide/citoglipton were already dropped/consolidated,
 # and A1C_missing/A1C_category (informative-missingness) already exist in
 # the cleaned CSV loaded above. Re-running this here used to crash with a
@@ -58,7 +58,7 @@ print("   A1/A1.5 skipped: already handled by data_cleaning.py "
       "(A1C_missing/A1C_category, glu_serum_missing/glu_serum_category, "
       "num_rare_meds_used already present in the loaded data).")
 
-# ── A2: SKIPPED — already done by data_cleaning.py ─────────────────────────
+# â”€â”€ A2: SKIPPED â€” already done by data_cleaning.py â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # gender='Unknown/Invalid' rows and expired/hospice discharge rows are
 # already removed upstream. Re-running the discharge_disposition_id check
 # here used to be a silent no-op anyway, since that column is now a STRING
@@ -66,22 +66,22 @@ print("   A1/A1.5 skipped: already handled by data_cleaning.py "
 # an int list like [11, 13, 14] never matches.
 print(f"   A2 skipped: gender/discharge-id row removal already done upstream. Shape: {df.shape}")
 
-# ── A3: Impute remaining missing values ─────────────────────────────────────
+# â”€â”€ A3: Impute remaining missing values â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 df['payer_code']        = df['payer_code'].fillna('Unknown')
 df['medical_specialty'] = df['medical_specialty'].fillna('Unknown')
 df['race']              = df['race'].fillna(df['race'].mode()[0])
 
 # BUG3 FIX: diag fill with 'Unknown' NOT mode
-# ❌ OLD (wrong): df['diag_1'] = df['diag_1'].fillna(df['diag_1'].mode()[0])
-#                 mode = '428' (heart failure) — assigns specific disease to patient
+# âŒ OLD (wrong): df['diag_1'] = df['diag_1'].fillna(df['diag_1'].mode()[0])
+#                 mode = '428' (heart failure) â€” assigns specific disease to patient
 #                 with no recorded diagnosis. Clinically misleading.
-# ✅ NEW (correct): 'Unknown' = honest neutral fill
+# âœ… NEW (correct): 'Unknown' = honest neutral fill
 for col in ['diag_1', 'diag_2', 'diag_3']:
     df[col] = df[col].fillna('Unknown')
-print("   ✅ BUG3 FIX: diag_1/2/3 missing → 'Unknown' (not mode/heart-failure)")
+print("   âœ… BUG3 FIX: diag_1/2/3 missing â†’ 'Unknown' (not mode/heart-failure)")
 print("   Remaining missing values:", df.isnull().sum().sum())
 
-# ── A4: Create binary target ─────────────────────────────────────────────────
+# â”€â”€ A4: Create binary target â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 df['target'] = (df['readmitted'] == '<30').astype(int)
 df.drop('readmitted', axis=1, inplace=True)
 print(f"\n   Target distribution: {df['target'].value_counts().to_dict()}")
@@ -119,7 +119,7 @@ plt.close(_hist_fig)
 print("   Saved: addition1_patient_history_readmission_rate.png")
 # ---------------------------------------------------------------------------
 
-# ── A5: Diagnosis code grouping (CCS taxonomy) ──────────────────────────────
+# â”€â”€ A5: Diagnosis code grouping (CCS taxonomy) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 def map_diagnosis(code):
     """ADDITION 4 -- refined ICD-9 grouping (19 groups instead of the
     original 9). The original 'Circulatory' bucket (390-459) mixed heart
@@ -170,7 +170,7 @@ df['comorbidity_diversity'] = df[['diag_1_group','diag_2_group','diag_3_group']]
     lambda r: len(set(r) - {'Unknown', 'Other'}), axis=1)
 print("   Diagnosis groups + clinical flags created.")
 
-# ── A6: Map ID columns to meaningful groups ──────────────────────────────────
+# â”€â”€ A6: Map ID columns to meaningful groups â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 def _to_int_or_unknown(x):
     """admission_type_id / admission_source_id / discharge_disposition_id are
     STRINGS in the cleaned CSV ('Unknown' for hidden-missing codes, numeric
@@ -213,9 +213,9 @@ df['admission_source_group'] = df['admission_source_id'].apply(map_admission_sou
 df['discharge_group']        = df['discharge_disposition_id'].apply(map_discharge)
 df.drop(['admission_type_id','admission_source_id','discharge_disposition_id'],
         axis=1, inplace=True)
-print("   admission_type/source/discharge → categorical groups ✓")
+print("   admission_type/source/discharge â†’ categorical groups âœ“")
 
-# ── A7: Age bracket → numeric midpoint ──────────────────────────────────────
+# â”€â”€ A7: Age bracket â†’ numeric midpoint â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 age_mapping = {
     '[0-10)':5,   '[10-20)':15, '[20-30)':25, '[30-40)':35, '[40-50)':45,
     '[50-60)':55, '[60-70)':65, '[70-80)':75, '[80-90)':85, '[90-100)':95
@@ -223,22 +223,22 @@ age_mapping = {
 df['age_numeric'] = df['age'].map(age_mapping)
 df.drop('age', axis=1, inplace=True)
 
-# ── A8: Medication aggregate features ───────────────────────────────────────
-# BUG1 FIX: examide and citoglipton REMOVED — both 100% "No" (zero variance)
-# ❌ OLD: included examide, citoglipton → inflated num_med_changes/num_meds_active
-# ✅ NEW: only medications with actual variability
+# â”€â”€ A8: Medication aggregate features â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# BUG1 FIX: examide and citoglipton REMOVED â€” both 100% "No" (zero variance)
+# âŒ OLD: included examide, citoglipton â†’ inflated num_med_changes/num_meds_active
+# âœ… NEW: only medications with actual variability
 med_cols = [
     'metformin',    'repaglinide',    'nateglinide',    'chlorpropamide',
     'glimepiride',  'acetohexamide',  'glipizide',      'glyburide',
     'tolbutamide',  'pioglitazone',   'rosiglitazone',  'acarbose',
     'miglitol',     'troglitazone',   'tolazamide',
-    # examide   ← REMOVED (100% No)
-    # citoglipton ← REMOVED (100% No)
+    # examide   â† REMOVED (100% No)
+    # citoglipton â† REMOVED (100% No)
     'insulin',      'glyburide-metformin',       'glipizide-metformin',
     'glimepiride-pioglitazone', 'metformin-rosiglitazone', 'metformin-pioglitazone'
 ]
 med_cols = [m for m in med_cols if m in df.columns]
-print(f"\n   ✅ BUG1 FIX: examide/citoglipton removed from med_cols")
+print(f"\n   âœ… BUG1 FIX: examide/citoglipton removed from med_cols")
 print(f"   Active med_cols count: {len(med_cols)}")
 
 df['num_med_changes'] = df[med_cols].apply(
@@ -251,10 +251,10 @@ df['num_med_decrease'] = df[med_cols].apply(
     lambda row: (row == 'Down').sum(), axis=1)
 
 # ============================================================
-# ✅ INSULIN FIXED: One-Hot Encoding (Safe for ALL models)
+# âœ… INSULIN FIXED: One-Hot Encoding (Safe for ALL models)
 # ============================================================
-# ❌ OLD (Removed): No=0, Steady=1, Up=2, Down=3 → false ordinal assumption
-# ✅ NEW (Fixed): One-Hot + Binary flags (no linear ranking)
+# âŒ OLD (Removed): No=0, Steady=1, Up=2, Down=3 â†’ false ordinal assumption
+# âœ… NEW (Fixed): One-Hot + Binary flags (no linear ranking)
 df['insulin_No'] = (df['insulin'] == 'No').astype(int)
 df['insulin_Steady'] = (df['insulin'] == 'Steady').astype(int)
 df['insulin_Up'] = (df['insulin'] == 'Up').astype(int)
@@ -264,8 +264,8 @@ df['insulin_Down'] = (df['insulin'] == 'Down').astype(int)
 df['insulin_adjusted'] = df['insulin'].isin(['Up', 'Down']).astype(int)
 df['insulin_increased'] = (df['insulin'] == 'Up').astype(int)
 
-print(f"   ✅ INSULIN FIXED: One-Hot (No,Steady,Up,Down) + binary flags added.")
-print(f"   ❌ Old 'insulin_ord' removed to avoid false ordinal assumption.")
+print(f"   âœ… INSULIN FIXED: One-Hot (No,Steady,Up,Down) + binary flags added.")
+print(f"   âŒ Old 'insulin_ord' removed to avoid false ordinal assumption.")
 
 # Polypharmacy level (ordinal)
 df['polypharmacy_level'] = pd.cut(
@@ -275,7 +275,7 @@ df['polypharmacy_level'] = pd.cut(
 df.drop(columns=med_cols, inplace=True)
 print(f"   Medication features engineered. Shape: {df.shape}")
 
-# ── A9: Utilisation aggregate ────────────────────────────────────────────────
+# â”€â”€ A9: Utilisation aggregate â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 df['total_prior_visits']   = (df['number_outpatient']
                                + df['number_emergency']
                                + df['number_inpatient'])
@@ -296,20 +296,20 @@ df['high_complexity']     = (
     (df['num_lab_procedures'] > 40) & (df['number_diagnoses'] > 7)
 ).astype(int)
 
-# ── A10: Binary encode low-cardinality cats ──────────────────────────────────
-# NOTE: gender Unknown/Invalid already removed in A2 — safe to encode now
+# â”€â”€ A10: Binary encode low-cardinality cats â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# NOTE: gender Unknown/Invalid already removed in A2 â€” safe to encode now
 df['gender_binary']      = (df['gender']      == 'Male').astype(int)
 df['change_binary']      = (df['change']      == 'Ch').astype(int)
 df['diabetesMed_binary'] = (df['diabetesMed'] == 'Yes').astype(int)
 df.drop(['gender', 'change', 'diabetesMed'], axis=1, inplace=True)
 
-# ── A11: Drop encounter_id ───────────────────────────────────────────────────
+# â”€â”€ A11: Drop encounter_id â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 df.drop('encounter_id', axis=1, inplace=True)
 
-print(f"\n✅ Stage A complete. Shape: {df.shape}")
+print(f"\nâœ… Stage A complete. Shape: {df.shape}")
 
 # ============================================================================
-# STAGE B — TRAIN / TEST SPLIT  (GroupShuffleSplit on patient_nbr)
+# STAGE B â€” TRAIN / TEST SPLIT  (GroupShuffleSplit on patient_nbr)
 # ============================================================================
 X      = df.drop('target', axis=1)
 y      = df['target']
@@ -323,7 +323,7 @@ X_test  = X.iloc[test_idx].copy()
 y_train = y.iloc[train_idx].copy()
 y_test  = y.iloc[test_idx].copy()
 
-# NEW: patient groups ko drop karne se PEHLE save karo — Code 4 ki inner CV
+# NEW: patient groups ko drop karne se PEHLE save karo â€” Code 4 ki inner CV
 # (StratifiedGroupKFold) ko patient-safe banane ke liye zaroori hai
 groups_for_cv = X_train['patient_nbr'].reset_index(drop=True)
 groups_for_cv.to_csv(PROCESSED_DIR / 'train_patient_groups.csv', index=False, header=['patient_nbr'])
@@ -336,12 +336,12 @@ print(f"   Train: {X_train.shape}  |  Test: {X_test.shape}")
 print(f"   Train positive: {y_train.mean()*100:.2f}%  |  Test positive: {y_test.mean()*100:.2f}%")
 
 assert len(set(groups.iloc[train_idx]) & set(groups.iloc[test_idx])) == 0
-print("   ✅ Zero patient overlap confirmed.")
+print("   âœ… Zero patient overlap confirmed.")
 # ============================================================================
-# STAGE B.5 — IQR OUTLIER CAPPING (train-fitted only)
+# STAGE B.5 â€” IQR OUTLIER CAPPING (train-fitted only)
 # ============================================================================
 # Only genuine continuous clinical measurements
-# admission_type/source/discharge already categorical — NOT included
+# admission_type/source/discharge already categorical â€” NOT included
 continuous_cols = [c for c in [
     'time_in_hospital', 'num_lab_procedures', 'num_procedures',
     'num_medications',  'number_outpatient',   'number_emergency',
@@ -352,13 +352,13 @@ continuous_cols = [c for c in [
     'comorbidity_diversity',
 ] if c in X_train.columns]
 
-# Zero-inflated columns: use 99th percentile cap (not IQR — all non-zero flagged)
+# Zero-inflated columns: use 99th percentile cap (not IQR â€” all non-zero flagged)
 zero_inflated = {'number_outpatient', 'number_emergency',
                  'number_inpatient',  'total_prior_visits', 'utilization_score'}
 
 iqr_bounds = {}
 print(f"\n{'='*65}")
-print("STAGE B.5 — Outlier Capping (train-fitted, no leakage)")
+print("STAGE B.5 â€” Outlier Capping (train-fitted, no leakage)")
 print(f"{'='*65}")
 
 for col in continuous_cols:
@@ -385,17 +385,17 @@ joblib.dump(iqr_bounds, PROCESSED_DIR / 'iqr_bounds.pkl')
 print("   IQR bounds saved.")
 
 # ============================================================================
-# STAGE C — HIGH-CARDINALITY GROUPING (fit on train → apply to test)
+# STAGE C â€” HIGH-CARDINALITY GROUPING (fit on train â†’ apply to test)
 # ============================================================================
 def group_high_cardinality_fixed(train_s, test_s, top_n=10):
     """
-    'Unknown' explicitly preserved — missing data signal (49% medical_specialty,
+    'Unknown' explicitly preserved â€” missing data signal (49% medical_specialty,
     39% payer_code). 'Rare_Other' for categories outside top-N.
     This prevents 'Unknown' from merging with actual rare categories.
     """
     top_cats = train_s.value_counts().nlargest(top_n).index.tolist()
     def _map(x, top):
-        if x == 'Unknown':  return 'Unknown'      # missing signal — preserve
+        if x == 'Unknown':  return 'Unknown'      # missing signal â€” preserve
         elif x in top:      return x
         else:               return 'Rare_Other'   # low-frequency specialty
     return (train_s.apply(lambda x: _map(x, top_cats)),
@@ -410,19 +410,19 @@ X_train['payer_code_grouped'], X_test['payer_code_grouped'] = \
 X_train.drop(['medical_specialty', 'payer_code'], axis=1, inplace=True)
 X_test.drop(['medical_specialty',  'payer_code'], axis=1, inplace=True)
 
-print(f"\n✅ Stage C — Grouping done.")
+print(f"\nâœ… Stage C â€” Grouping done.")
 print(f"   medical_specialty_grouped distribution (train):")
 print(X_train['medical_specialty_grouped'].value_counts().head(12).to_string())
 
 # ============================================================================
-# STAGE D1 — ONE-HOT ENCODING
+# STAGE D1 â€” ONE-HOT ENCODING
 # ============================================================================
-# ✅ FIX_OHE: pd.get_dummies() (train/test alag-alag call, phir manual align)
+# âœ… FIX_OHE: pd.get_dummies() (train/test alag-alag call, phir manual align)
 # ki jagah sklearn OneHotEncoder use ho raha hai -- train par .fit(), test par
 # sirf .transform(). Yeh train/test baseline-category mismatch ka structural
 # risk khatam karta hai, aur encoder ko joblib.dump() se save karta hai taake
 # Code 5 (deployment/naya patient) mein reliably reuse ho sake.
-# ✅ ADDED: A1C_category (preserves missing signal as separate category)
+# âœ… ADDED: A1C_category (preserves missing signal as separate category)
 nominal_cols = [c for c in [
     'race',
     'A1C_category', 'glu_serum_category',
@@ -431,7 +431,7 @@ nominal_cols = [c for c in [
     'medical_specialty_grouped', 'payer_code_grouped'
 ] if c in X_train.columns]
 
-# NEW: OHE se pehle raw categorical columns ka copy rakho — Stage D5
+# NEW: OHE se pehle raw categorical columns ka copy rakho â€” Stage D5
 # (group-aware MI selection) mein har categorical ko GROUP ki tarah
 # evaluate karne ke liye chahiye hoga
 X_train_nominal_raw = X_train[nominal_cols].copy()
@@ -447,7 +447,7 @@ test_ohe_df  = pd.DataFrame(test_ohe_arr,  columns=ohe_feature_names, index=X_te
 X_train_enc = pd.concat([X_train.drop(columns=nominal_cols), train_ohe_df], axis=1)
 X_test_enc  = pd.concat([X_test.drop(columns=nominal_cols),  test_ohe_df],  axis=1)
 
-# joblib se save karo — Code 5 (deployment) mein isi encoder se .transform() karna
+# joblib se save karo â€” Code 5 (deployment) mein isi encoder se .transform() karna
 joblib.dump(ohe, PROCESSED_DIR / 'onehot_encoder.pkl')
 joblib.dump(nominal_cols, PROCESSED_DIR / 'nominal_cols.pkl')
 
@@ -459,12 +459,12 @@ for parent in nominal_cols:
         if dummy.startswith(parent + '_'):
             ohe_dummy_to_parent[dummy] = parent
 
-print(f"\n✅ Stage D1 — OHE done (sklearn OneHotEncoder, fit on train only).")
+print(f"\nâœ… Stage D1 â€” OHE done (sklearn OneHotEncoder, fit on train only).")
 print(f"   Train: {X_train_enc.shape} | Test: {X_test_enc.shape}")
-print(f"   ✅ FIX_OHE: encoder saved -> onehot_encoder.pkl (reusable at inference)")
+print(f"   âœ… FIX_OHE: encoder saved -> onehot_encoder.pkl (reusable at inference)")
 features_after_ohe = X_train_enc.shape[1] 
 # ============================================================================
-# HEATMAP 1 — NUMERIC FEATURES CORRELATION MATRIX
+# HEATMAP 1 â€” NUMERIC FEATURES CORRELATION MATRIX
 # ============================================================================
 numeric_cols_for_heatmap = [c for c in [
     'time_in_hospital',  'num_lab_procedures', 'num_procedures',
@@ -526,12 +526,12 @@ ax_h1.set_yticklabels(labels_heatmap, fontsize=7.5, color=PALETTE['label'], rota
 ax_h1.tick_params(length=0)
 for side in ['top','right','left','bottom']: ax_h1.spines[side].set_visible(False)
 
-fig_h1.text(0.015, 0.94, 'Feature Engineering  |  Correlation Matrix — Numeric Features',
+fig_h1.text(0.015, 0.94, 'Feature Engineering  |  Correlation Matrix â€” Numeric Features',
             fontsize=13, fontweight='bold', color=PALETTE['title'])
 fig_h1.text(0.015, 0.908, 'Orange border = |r| > 0.60  |  Diagonal = self-correlation (1.00)',
             fontsize=8.5, color='#5A6A7A', style='italic')
 fig_h1.legend(handles=[
-    mpatches.Patch(facecolor='#0D4A45', edgecolor='white', label='Strong Negative (−1.0)'),
+    mpatches.Patch(facecolor='#0D4A45', edgecolor='white', label='Strong Negative (âˆ’1.0)'),
     mpatches.Patch(facecolor='#F5F7FA', edgecolor='#CCCCCC', label='No Correlation (0.0)'),
     mpatches.Patch(facecolor='#6B1A1A', edgecolor='white', label='Strong Positive (+1.0)'),
     mpatches.Patch(facecolor='none',    edgecolor='#E67E22', linewidth=1.5, label='|r| > 0.60'),
@@ -541,10 +541,10 @@ fig_h1.legend(handles=[
 fig_h1.savefig(FIGURES_DIR / 'fe_numeric_correlation_heatmap.png',
                dpi=300, bbox_inches='tight', facecolor='white')
 plt.close(fig_h1)
-print("\n✅ Saved: fe_numeric_correlation_heatmap.png")
+print("\nâœ… Saved: fe_numeric_correlation_heatmap.png")
 
 # ============================================================================
-# HEATMAP 2 — CORRELATION WITH TARGET
+# HEATMAP 2 â€” CORRELATION WITH TARGET
 # ============================================================================
 train_with_target = X_train_enc[numeric_cols_for_heatmap].copy()
 train_with_target['target'] = y_train.values
@@ -586,19 +586,19 @@ fig_h2.text(0.015, 0.94,
             'Feature Engineering  |  Correlation of Numeric Features with Target',
             fontsize=13, fontweight='bold', color=PALETTE['title'])
 fig_h2.text(0.015, 0.908,
-            'Red = positive  |  Blue = negative  |  Orange = ±0.02 reference',
+            'Red = positive  |  Blue = negative  |  Orange = Â±0.02 reference',
             fontsize=8.5, color='#5A6A7A', style='italic')
 
 fig_h2.savefig(FIGURES_DIR / 'fe_target_correlation.png',
                dpi=300, bbox_inches='tight', facecolor='white')
 plt.close(fig_h2)
-print("✅ Saved: fe_target_correlation.png")
+print("âœ… Saved: fe_target_correlation.png")
 
 # ============================================================================
-# STAGE D2 — ROBUST SCALER (fit on train only)
-# FIX6: Binary columns (0/1) exclude from scaling — meaningless to scale
+# STAGE D2 â€” ROBUST SCALER (fit on train only)
+# FIX6: Binary columns (0/1) exclude from scaling â€” meaningless to scale
 # ============================================================================
-# FIX6: Only scale continuous/ordinal features — NOT binary flags
+# FIX6: Only scale continuous/ordinal features â€” NOT binary flags
 binary_cols = [
     'gender_binary', 'change_binary', 'diabetesMed_binary',
     'primary_diag_diabetes', 'prior_inpatient_flag', 'prior_emergency_flag',
@@ -618,20 +618,20 @@ numeric_scale_cols = [c for c in [
 ] if c in X_train_enc.columns]
 
 # FIX6: binary cols are intentionally NOT in numeric_scale_cols
-print(f"\n   ✅ FIX6: Binary cols excluded from RobustScaler: {binary_cols}")
+print(f"\n   âœ… FIX6: Binary cols excluded from RobustScaler: {binary_cols}")
 
 scaler = RobustScaler()
 X_train_scaled = X_train_enc.copy()
 X_test_scaled  = X_test_enc.copy()
 X_train_scaled[numeric_scale_cols] = scaler.fit_transform(X_train_enc[numeric_scale_cols])
 X_test_scaled[numeric_scale_cols]  = scaler.transform(X_test_enc[numeric_scale_cols])
-print(f"✅ Stage D2 — Scaling done. Scaled {len(numeric_scale_cols)} numeric cols.")
+print(f"âœ… Stage D2 â€” Scaling done. Scaled {len(numeric_scale_cols)} numeric cols.")
 
 # ============================================================================
-# STAGE D3 — VARIANCE THRESHOLD (fitted on train)
+# STAGE D3 â€” VARIANCE THRESHOLD (fitted on train)
 # ============================================================================
 print(f"\n{'='*65}")
-print("STAGE D3 — VarianceThreshold (threshold=0.01)")
+print("STAGE D3 â€” VarianceThreshold (threshold=0.01)")
 print(f"{'='*65}")
 
 var_selector   = VarianceThreshold(threshold=0.01)
@@ -649,20 +649,20 @@ X_test_var  = pd.DataFrame(X_test_var_arr,  columns=kept_features_var)
 print(f"   Features before: {features_after_ohe}")
 print(f"   Features after:  {len(kept_features_var)}")
 if removed_var:
-    print(f"   ❌ Removed ({len(removed_var)} features):")
+    print(f"   âŒ Removed ({len(removed_var)} features):")
     for f in removed_var:
         print(f"      - {f}  (variance={X_train_scaled[f].var():.6f})")
 else:
     print("   All features passed variance threshold.")
 
 # ============================================================================
-# STAGE D4 — CORRELATION FILTER (target-correlation based drop)
-# ✅ FIX: Correlation filter now applies ONLY to continuous/engineered numeric features
+# STAGE D4 â€” CORRELATION FILTER (target-correlation based drop)
+# âœ… FIX: Correlation filter now applies ONLY to continuous/engineered numeric features
 # OHE columns have structural negative correlation (e.g., race_Asian vs race_African)
-# — skipping them prevents dropping useful categories.
+# â€” skipping them prevents dropping useful categories.
 # ============================================================================
 print(f"\n{'='*65}")
-print("STAGE D4 — Correlation Filter (|r| > 0.90, target-corr based drop)")
+print("STAGE D4 â€” Correlation Filter (|r| > 0.90, target-corr based drop)")
 print("          Applied ONLY to continuous numeric features (OHE columns excluded)")
 print(f"{'='*65}")
 
@@ -675,19 +675,19 @@ for col in X_train_var.columns:
     except Exception:
         target_corrs_var[col] = 0.0
 
-# ✅ FIX: Restrict correlation matrix to continuous features ONLY
+# âœ… FIX: Restrict correlation matrix to continuous features ONLY
 continuous_features_for_corr = [c for c in numeric_scale_cols if c in X_train_var.columns]
 
 if continuous_features_for_corr:
     corr_matrix_var = X_train_var[continuous_features_for_corr].corr().abs()
     upper_tri = corr_matrix_var.where(
         np.triu(np.ones(corr_matrix_var.shape), k=1).astype(bool))
-    print(f"   ✅ Correlation matrix built on {len(continuous_features_for_corr)} continuous features only.")
+    print(f"   âœ… Correlation matrix built on {len(continuous_features_for_corr)} continuous features only.")
     print(f"   (OHE columns automatically excluded from this filter)")
 else:
     corr_matrix_var = pd.DataFrame()
     upper_tri = pd.DataFrame()
-    print("   ⚠️ No continuous features found for correlation filter — skipping.")
+    print("   âš ï¸ No continuous features found for correlation filter â€” skipping.")
 
 cols_to_drop_corr = set()
 corr_pairs_found = []
@@ -721,18 +721,18 @@ if corr_pairs_found:
               f" | DROP '{p['dropped']}' (tgt_r={p['dropped_target_corr']:.4f})")
 else:
     print("   No highly correlated continuous pairs found.")
-print("   (OHE columns were skipped — their structural negative correlation is expected)")
+print("   (OHE columns were skipped â€” their structural negative correlation is expected)")
 
 # ============================================================================
-# STAGE D5 — MUTUAL INFORMATION SELECTION (FIX_MI v2 — GROUP-AWARE)
+# STAGE D5 â€” MUTUAL INFORMATION SELECTION (FIX_MI v2 â€” GROUP-AWARE)
 # ============================================================================
-# ✅ FIX_MI v2: Pehli fix (discrete_features mask) ne per-dummy estimator ko
-# theek kiya tha, lekin ASAL masla kuch aur tha — OneHotEncoding ek categorical
+# âœ… FIX_MI v2: Pehli fix (discrete_features mask) ne per-dummy estimator ko
+# theek kiya tha, lekin ASAL masla kuch aur tha â€” OneHotEncoding ek categorical
 # variable ka poora signal 8-10 alag dummy columns mein baant deti hai, isliye
 # har dummy ki individual MI chhoti dikhti hai chahe poora categorical variable
 # milkar strong signal rakhta ho. Flat threshold un dummies ko unfairly punish
 # karta hai. Verified: pehli fix ke baad bhi 'diag_1_group_Diabetes' drop ho
-# raha tha (MI=0.000138 < 0.0005) — file ka apna sanity check FAIL ho raha tha.
+# raha tha (MI=0.000138 < 0.0005) â€” file ka apna sanity check FAIL ho raha tha.
 #
 # FIX: har categorical group (race, diag_1_group, medical_specialty_grouped,
 # etc.) ko EK BAAR, uske RAW (pre-OHE) column pe evaluate karo -- na ke har
@@ -741,7 +741,7 @@ print("   (OHE columns were skipped — their structural negative correlation is
 # Numeric/binary engineered features (jo OHE se nahi aaye) pehli tarah hi
 # per-feature MI se filter hote hain -- unke liye kuch nahi badla.
 print(f"\n{'='*65}")
-print("STAGE D5 — Mutual Information Selection (group-aware, threshold=0.0005)")
+print("STAGE D5 â€” Mutual Information Selection (group-aware, threshold=0.0005)")
 print(f"{'='*65}")
 
 MI_THRESHOLD = 0.0005
@@ -749,7 +749,7 @@ MI_THRESHOLD = 0.0005
 surviving_ohe_cols = [c for c in X_train_corr.columns if c in ohe_dummy_to_parent]
 non_ohe_cols        = [c for c in X_train_corr.columns if c not in ohe_dummy_to_parent]
 
-# Tier 1 — numeric/binary engineered features (unchanged logic)
+# Tier 1 â€” numeric/binary engineered features (unchanged logic)
 discrete_mask_nonohe = [X_train_corr[col].nunique() <= 10 for col in non_ohe_cols]
 mi_scores_nonohe = mutual_info_classif(
     X_train_corr[non_ohe_cols], y_train,
@@ -757,7 +757,7 @@ mi_scores_nonohe = mutual_info_classif(
 )
 mi_df_nonohe = pd.DataFrame({'Feature': non_ohe_cols, 'MI_Score': mi_scores_nonohe})
 
-# Tier 2 — categorical (OHE) groups: MI of the RAW parent column, evaluated
+# Tier 2 â€” categorical (OHE) groups: MI of the RAW parent column, evaluated
 # ONCE per categorical (not per dummy)
 parents_present = sorted(set(ohe_dummy_to_parent[c] for c in surviving_ohe_cols))
 group_scores = {}
@@ -799,20 +799,20 @@ print(f"   Features after:  {len(kept_by_mi)}")
 # Honest sanity check (no longer falsely claims a fix that doesn't hold)
 if 'diag_1_group' in group_scores:
     s = group_scores['diag_1_group']
-    status = 'KEPT ✅' if s >= MI_THRESHOLD else 'DROPPED ❌ (genuinely low signal, not a fragmentation artifact)'
+    status = 'KEPT âœ…' if s >= MI_THRESHOLD else 'DROPPED âŒ (genuinely low signal, not a fragmentation artifact)'
     print(f"   Sanity check -- diag_1_group (whole categorical) MI={s:.6f} -> {status}")
 
 if removed_mi:
-    print(f"   ❌ Removed ({len(removed_mi)} features/dummies)")
+    print(f"   âŒ Removed ({len(removed_mi)} features/dummies)")
 else:
-    print("   All features above MI threshold — none removed.")
+    print("   All features above MI threshold â€” none removed.")
 
 # ============================================================================
 # MI CHART
 # ============================================================================
 fig_mi, axes_mi = plt.subplots(1, 2, figsize=(20, 9))
 fig_mi.patch.set_facecolor('white')
-fig_mi.suptitle('Stage D5 — Mutual Information Feature Selection',
+fig_mi.suptitle('Stage D5 â€” Mutual Information Feature Selection',
                 fontsize=14, fontweight='bold', color=PALETTE['title'])
 
 top25    = mi_df[mi_df['Feature'].isin(kept_by_mi)].head(25)
@@ -826,7 +826,7 @@ for i, (_, row) in enumerate(top25.iterrows()):
 axes_mi[0].set_yticks(range(len(top25)))
 axes_mi[0].set_yticklabels(top25['Feature'], fontsize=8)
 axes_mi[0].invert_yaxis()
-axes_mi[0].set_title('✅ Top 25 KEPT Features (highest MI)',
+axes_mi[0].set_title('âœ… Top 25 KEPT Features (highest MI)',
                      fontsize=11, fontweight='bold', color=PALETTE['title'])
 axes_mi[0].set_xlabel('Mutual Information Score', fontsize=10)
 axes_mi[0].spines[['top','right']].set_visible(False)
@@ -841,7 +841,7 @@ if removed_mi:
     axes_mi[1].set_yticks(range(len(removed_mi_df)))
     axes_mi[1].set_yticklabels(removed_mi_df['Feature'], fontsize=8)
     axes_mi[1].invert_yaxis()
-    axes_mi[1].set_title(f'❌ {len(removed_mi)} DROPPED (MI < {MI_THRESHOLD})',
+    axes_mi[1].set_title(f'âŒ {len(removed_mi)} DROPPED (MI < {MI_THRESHOLD})',
                          fontsize=11, fontweight='bold', color=PALETTE['title'])
 else:
     axes_mi[1].text(0.5, 0.5, 'No features\ndropped by MI filter',
@@ -855,7 +855,7 @@ plt.tight_layout(rect=[0, 0, 1, 0.96])
 fig_mi.savefig(FIGURES_DIR / 'D5_mutual_information_selection.png',
                dpi=300, bbox_inches='tight', facecolor='white')
 plt.close(fig_mi)
-print("\n   MI chart saved → D5_mutual_information_selection.png")
+print("\n   MI chart saved â†’ D5_mutual_information_selection.png")
 
 # ============================================================================
 # FEATURE SELECTION SUMMARY
@@ -867,20 +867,20 @@ print(f"  After OHE               : {features_after_ohe:>4} features")
 print(f"  After VarianceThreshold : {len(kept_features_var):>4} features  (-{len(removed_var)})")
 print(f"  After Correlation Filter: {X_train_corr.shape[1]:>4} features  (-{len(removed_corr)})")
 print(f"  After MI Selection      : {X_train_final.shape[1]:>4} features  (-{len(removed_mi)})")
-print(f"  {'─'*50}")
+print(f"  {'â”€'*50}")
 print(f"  FINAL FEATURE COUNT     : {X_train_final.shape[1]:>4}")
 
 summary_df = pd.DataFrame({
     'Feature'    : mi_df['Feature'],
     'MI_Score'   : mi_df['MI_Score'].round(6),
-    'Selected'   : mi_df['Feature'].isin(kept_by_mi).map({True:'✅ KEPT', False:'❌ DROPPED'}),
+    'Selected'   : mi_df['Feature'].isin(kept_by_mi).map({True:'âœ… KEPT', False:'âŒ DROPPED'}),
     'Reason_dropped': mi_df['Feature'].apply(
         lambda f: 'Low MI (<0.0005)' if f in removed_mi
         else ('Low Variance' if f in removed_var
               else ('High Corr (low target-corr)' if f in removed_corr else '')))
 })
 summary_df.to_csv(PROCESSED_DIR / 'feature_selection_report.csv', index=False)
-print(f"  Selection report saved → feature_selection_report.csv")
+print(f"  Selection report saved â†’ feature_selection_report.csv")
 
 # ============================================================================
 # CLASS IMBALANCE ANALYSIS
@@ -900,13 +900,13 @@ print(f"  Negative            : {neg_train:,}  ({neg_train/total_train*100:.2f}%
 print(f"  Imbalance ratio     : {ratio:.2f} : 1")
 print()
 print("  Per-model handling strategy:")
-print(f"  ├── XGBoost       → scale_pos_weight={ratio:.2f}")
-print(f"  ├── LightGBM      → is_unbalance=True  OR  class_weight={{0:1, 1:{ratio:.0f}}}")
-print(f"  ├── LogisticReg   → class_weight='balanced'")
-print(f"  ├── RandomForest  → class_weight='balanced'")
-print(f"  └── SVM           → class_weight='balanced'")
+print(f"  â”œâ”€â”€ XGBoost       â†’ scale_pos_weight={ratio:.2f}")
+print(f"  â”œâ”€â”€ LightGBM      â†’ is_unbalance=True  OR  class_weight={{0:1, 1:{ratio:.0f}}}")
+print(f"  â”œâ”€â”€ LogisticReg   â†’ class_weight='balanced'")
+print(f"  â”œâ”€â”€ RandomForest  â†’ class_weight='balanced'")
+print(f"  â””â”€â”€ SVM           â†’ class_weight='balanced'")
 print()
-print("  NOTE: SMOTE is optional — gradient boosting with scale_pos_weight")
+print("  NOTE: SMOTE is optional â€” gradient boosting with scale_pos_weight")
 print("        often outperforms SMOTE on tabular medical data.")
 print("        If you use SMOTE: apply ONLY on X_train, NEVER on X_test.")
 
@@ -927,7 +927,7 @@ pd.Series(X_train_final.columns.tolist()).to_csv(
 mi_df.to_csv(PROCESSED_DIR / 'mi_scores.csv', index=False)
 
 print(f"\n{'='*65}")
-print("✅ FEATURE ENGINEERING COMPLETE — ALL BUGS FIXED")
+print("âœ… FEATURE ENGINEERING COMPLETE â€” ALL BUGS FIXED")
 print(f"{'='*65}")
 print(f"  X_train : {X_train_final.shape}")
 print(f"  X_test  : {X_test_final.shape}")
@@ -935,23 +935,23 @@ print(f"  y_train : {y_train.shape}")
 print(f"  y_test  : {y_test.shape}")
 print()
 print("  All bugs fixed:")
-print("  ✅ BUG1: examide/citoglipton removed from med_cols")
-print("  ✅ BUG2: discharge_disposition_id=25 preserved (989 rows kept)")
-print("  ✅ BUG3: diag missing → 'Unknown' (not mode/heart-failure)")
-print("  ✅ INSULIN FIXED: One-Hot encoding (No/Steady/Up/Down) + binary flags")
-print("  ✅ BUG5: gender Unknown/Invalid removed before encoding")
-print("  ✅ FIX6: binary cols excluded from RobustScaler")
-print("  ✅ FIX7: MI threshold = 0.0005 (not brittle 20%)")
-print("  ✅ FIX8: per-model imbalance instructions added")
-print("  ✅ A1C FIXED: Missing flag + 'Unknown' category (preserved informative missingness)")
-print("  ✅ CORR FIXED: Correlation filter now applies ONLY to continuous numeric features")
+print("  âœ… BUG1: examide/citoglipton removed from med_cols")
+print("  âœ… BUG2: discharge_disposition_id=25 preserved (989 rows kept)")
+print("  âœ… BUG3: diag missing â†’ 'Unknown' (not mode/heart-failure)")
+print("  âœ… INSULIN FIXED: One-Hot encoding (No/Steady/Up/Down) + binary flags")
+print("  âœ… BUG5: gender Unknown/Invalid removed before encoding")
+print("  âœ… FIX6: binary cols excluded from RobustScaler")
+print("  âœ… FIX7: MI threshold = 0.0005 (not brittle 20%)")
+print("  âœ… FIX8: per-model imbalance instructions added")
+print("  âœ… A1C FIXED: Missing flag + 'Unknown' category (preserved informative missingness)")
+print("  âœ… CORR FIXED: Correlation filter now applies ONLY to continuous numeric features")
 print()
 print("  Saved artifacts:")
 print("    X_train.csv, X_test.csv, y_train.csv, y_test.csv")
 print("    scaler.pkl, var_selector.pkl, iqr_bounds.pkl")
 print("    feature_names.csv, mi_scores.csv, feature_selection_report.csv")
 print()
-print("NEXT → Code 4: Model Training")
+print("NEXT â†’ Code 4: Model Training")
 print("  Use StratifiedGroupKFold(n_splits=5, groups=patient_nbr) for CV")
 print("  Primary metric: ROC-AUC + PR-AUC (imbalanced class)")
 print(f"{'='*65}")
