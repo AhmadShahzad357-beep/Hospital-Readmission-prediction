@@ -60,7 +60,7 @@ encounter, served live through a results dashboard and a real-time Case Checker.
 
 ## Architecture
 
-![Pipeline Architecture](docs/assets/architecture.gif)
+<img src="docs/assets/architecture.png" width="900">
 
 Data flows in one direction, start to finish: `data_cleaning.py` is the single source of truth for
 cleaning decisions, `feature_engineering.py` consumes its output, `model_training.py` trains, calibrates,
