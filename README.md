@@ -1,5 +1,7 @@
 # Hospital Readmission Prediction
 
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-Open%20Dashboard-2ea44f?style=for-the-badge)](https://hospital-readmission-prediction-chi.vercel.app)
+
 ---
 
 ## Overview
