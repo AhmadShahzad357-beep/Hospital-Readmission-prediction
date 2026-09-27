@@ -1,11 +1,4 @@
-﻿# Hospital Readmission Prediction
-
-## Screenshots
-
-**Case Checker** -- describe a patient's encounter and get the real model's calibrated 30-day
-readmission risk, the decision threshold, and the cost-sensitive threshold side by side.
-
-<img src="docs/assets/screenshots/01_case_checker.png" width="850">
+# Hospital Readmission Prediction
 
 ---
 
@@ -28,18 +21,26 @@ encounter, served live through a results dashboard and a real-time Case Checker.
 
 ---
 
-## Benefits
+## Problem Statement
 
-- **Better prioritization** -- limited follow-up resources go to the patients who need them most
-- **Trustworthy probabilities** -- calibration is checked and corrected, so risk scores can be used at
-  face value, not just for ranking
-- **Live scoring** -- any new patient encounter can be scored instantly through the Case Checker, using
-  the exact same pipeline as training
-- **Cost-aware decisions** -- a cost-sensitive threshold reflects that missing an at-risk patient is more
-  costly than an unnecessary follow-up call
-- **Fairness screening** -- selection rates and recall are checked across gender and race groups
-- **Clear business case** -- a cost-benefit simulation shows the potential savings from outreach to
-  high-risk patients
+When a diabetic patient is readmitted to hospital within 30 days of discharge, it is costly for the
+hospital and often a sign that the patient needed more support after going home. Care teams can prevent
+some of these readmissions with follow-up calls, visits, or medication checks -- but their time is
+limited, and they cannot give every discharged patient the same level of attention.
+
+Deciding who needs follow-up is hard for several reasons:
+
+- **Risk is hidden in many small signals** -- diagnoses, lab tests, medications, and the patient's own
+  history of past visits all matter, and no one can weigh all of them by hand for every patient.
+- **A raw risk score is not a real probability** -- unless it is calibrated, a score cannot be trusted at
+  face value for planning.
+- **Mistakes do not cost the same** -- missing an at-risk patient is more costly than making one
+  unnecessary follow-up call.
+- **Data leakage can make a model look better than it is** -- if the same patient appears in both training
+  and testing, results are overly optimistic.
+
+The goal is to give care teams a trustworthy, calibrated readmission risk for each patient encounter, so
+that limited follow-up resources go to the patients who need them most.
 
 ---
 
@@ -60,9 +61,46 @@ encounter, served live through a results dashboard and a real-time Case Checker.
 
 ## Architecture
 
-<img src="docs/assets/architecture.png" width="900">
+<img src="docs/assets/architecture.png" width="850">
 
 Data flows in one direction, start to finish: `data_cleaning.py` is the single source of truth for
 cleaning decisions, `feature_engineering.py` consumes its output, `model_training.py` trains, calibrates,
 and selects thresholds using only out-of-fold predictions, and the live Case Checker reuses the exact same
 saved pipeline artifacts for every new prediction.
+
+---
+
+## Dashboard
+
+**Case Checker** -- describe a patient's encounter and get the real model's calibrated 30-day
+readmission risk, the decision threshold, and the cost-sensitive threshold side by side.
+
+<img src="docs/assets/screenshots/01_case_checker.png" width="800">
+
+---
+
+## Benefits
+
+- **Better prioritization** -- limited follow-up resources go to the patients who need them most
+- **Trustworthy probabilities** -- calibration is checked and corrected, so risk scores can be used at
+  face value, not just for ranking
+- **Live scoring** -- any new patient encounter can be scored instantly through the Case Checker, using
+  the exact same pipeline as training
+- **Cost-aware decisions** -- a cost-sensitive threshold reflects that missing an at-risk patient is more
+  costly than an unnecessary follow-up call
+- **Fairness screening** -- selection rates and recall are checked across gender and race groups
+- **Clear business case** -- a cost-benefit simulation shows the potential savings from outreach to
+  high-risk patients
+
+---
+
+## Conclusion
+
+This project turns 99,340 hospital encounters into a practical tool for deciding which diabetic patients
+need follow-up after discharge. Patient-level splitting keeps the evaluation honest, calibration makes the
+risk scores usable at face value, and the cost-sensitive threshold reflects the real trade-off between
+missing an at-risk patient and making an extra follow-up call.
+
+With fairness checks, SHAP explanations, and a live Case Checker that uses the exact same pipeline as
+training, the model supports care teams in prioritizing their limited follow-up resources -- while final
+decisions about each patient stay with the clinicians who know them.
